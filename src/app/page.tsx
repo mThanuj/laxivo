@@ -1,10 +1,25 @@
 import Link from "next/link";
 import { getDbPublishedStores } from "@/lib/storefrontData";
 import { getCurrentUser } from "@/lib/serverAuth";
+import { Store } from "@/types/store";
 
 export default async function HomePage() {
-    const stores = await getDbPublishedStores();
-    const user = await getCurrentUser();
+    let stores: Store[] = [];
+    let user = null;
+    let dbError = false;
+
+    try {
+        stores = await getDbPublishedStores();
+    } catch (error) {
+        console.error("Failed to fetch stores:", error);
+        dbError = true;
+    }
+
+    try {
+        user = await getCurrentUser();
+    } catch (error) {
+        console.error("Failed to get current user:", error);
+    }
 
     return (
         <main className="min-h-screen bg-gray-50 px-6 py-16">
@@ -21,6 +36,13 @@ export default async function HomePage() {
                     A simple platform for small business owners to create their
                     own e-commerce storefront using ready-made templates.
                 </p>
+
+                {dbError && (
+                    <div className="mx-auto mt-6 max-w-2xl rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800 ring-1 ring-yellow-200">
+                        ⚠️ Database connection issue. Some features may be
+                        unavailable.
+                    </div>
+                )}
 
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                     {!user && (
@@ -57,17 +79,9 @@ export default async function HomePage() {
                             No published stores found
                         </h3>
 
-                        {process.env.NODE_ENV !== "production" && (
-                            <>
-                                <p className="mt-2 text-sm text-gray-500">
-                                    Run the seed route first:
-                                </p>
-
-                                <code className="mt-4 block rounded-xl bg-gray-100 p-4 text-sm text-gray-700">
-                                    http://localhost:3000/api/seed
-                                </code>
-                            </>
-                        )}
+                        <p className="mt-2 text-sm text-gray-500">
+                            Be the first to create a store!
+                        </p>
                     </div>
                 ) : (
                     <div className="mt-8 grid gap-4 sm:grid-cols-3">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { Store } from "@/types/store";
 import { AuthTokenPayload } from "@/lib/auth";
+import { TEMPLATE_MANIFEST } from "@/data/templates/template-manifest";
 
 type StoreSettingsFormProps = {
     initialStore: Store;
@@ -13,7 +14,6 @@ type StoreSettingsFormProps = {
 
 export default function StoreSettingsForm({
     initialStore,
-    currentUser,
 }: StoreSettingsFormProps) {
     const [store, setStore] = useState<Store>(initialStore);
     const [formData, setFormData] = useState<Store>(initialStore);
@@ -57,7 +57,7 @@ export default function StoreSettingsForm({
             setStore(result.store);
             setFormData(result.store);
             setMessageType("success");
-            setMessage("Store updated successfully in MongoDB.");
+            setMessage("Store updated successfully.");
         } catch (error) {
             setMessageType("error");
             setMessage(
@@ -81,7 +81,7 @@ export default function StoreSettingsForm({
         formData.append("api_key", apiKey);
         formData.append("timestamp", timestamp);
         formData.append("signature", signature);
-        formData.append("folder", "xovio");
+        formData.append("folder", "laxivo");
 
         const upload = await fetch(
             "https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload",
@@ -130,7 +130,8 @@ export default function StoreSettingsForm({
                         </h1>
 
                         <p className="mt-1 text-sm text-gray-500">
-                            Edit your store details and save them to MongoDB.
+                            Edit your store details and save them to the
+                            database.
                         </p>
                     </div>
 
@@ -258,8 +259,7 @@ export default function StoreSettingsForm({
                         </h2>
 
                         <p className="mt-1 text-sm text-gray-500">
-                            Image URLs are saved to MongoDB for now. File upload
-                            comes later.
+                            Upload logos and banners via Cloudinary.
                         </p>
 
                         <div className="mt-6 grid gap-5">
@@ -307,9 +307,11 @@ export default function StoreSettingsForm({
                                     }
                                     className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 >
-                                    <option value="classic">Classic</option>
-                                    <option value="modern">Modern</option>
-                                    <option value="minimal">Minimal</option>
+                                    {TEMPLATE_MANIFEST.map((tpl) => (
+                                        <option key={tpl.key} value={tpl.key}>
+                                            {tpl.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -371,7 +373,7 @@ export default function StoreSettingsForm({
                             </h2>
 
                             <p className="mt-1 text-sm text-gray-500">
-                                This will update the store document in MongoDB.
+                                This will update the store in the database.
                             </p>
                         </div>
 

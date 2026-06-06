@@ -1,127 +1,167 @@
-import mongoose from "mongoose";
-import { connectDb } from "@/lib/db";
-import { ProductModel } from "@/models/Product";
-import { StoreModel } from "@/models/Store";
+import { db } from "@/lib/db";
+import { stores, products, categories } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { Product } from "@/types/product";
 import { Store } from "@/types/store";
 
-type StoreLeanDocument = {
-    _id: mongoose.Types.ObjectId;
-    ownerId: mongoose.Types.ObjectId;
-    name: string;
-    slug: string;
-    description: string;
-    logoUrl: string;
-    bannerUrl: string;
-    contactEmail: string;
-    contactPhone: string;
-    location: string;
-    template: Store["template"];
-    themeColor: string;
-    isPublished: boolean;
-};
-
-type ProductLeanDocument = {
-    _id: mongoose.Types.ObjectId;
-    storeId: mongoose.Types.ObjectId;
-    name: string;
-    description: string;
-    price: number;
-    imageUrl: string;
-    category: string;
-    isActive: boolean;
-};
-
-function mapStoreFromDb(store: StoreLeanDocument): Store {
-    return {
-        id: store._id.toString(),
-        ownerId: store.ownerId.toString(),
-        name: store.name,
-        slug: store.slug,
-        description: store.description,
-        logoUrl: store.logoUrl,
-        bannerUrl: store.bannerUrl,
-        contactEmail: store.contactEmail,
-        contactPhone: store.contactPhone,
-        location: store.location,
-        template: store.template,
-        themeColor: store.themeColor,
-        isPublished: store.isPublished,
-    };
-}
-
-function mapProductFromDb(product: ProductLeanDocument): Product {
-    return {
-        id: product._id.toString(),
-        storeId: product.storeId.toString(),
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        imageUrl: product.imageUrl,
-        category: product.category,
-        isActive: product.isActive,
-    };
-}
-
 export async function getDbStoreBySlug(slug: string) {
-    await connectDb();
+    try {
+        const result = await db
+            .select()
+            .from(stores)
+            .where(and(eq(stores.slug, slug), eq(stores.isPublished, true)))
+            .limit(1);
 
-    const store = await StoreModel.findOne({
-        slug,
-        isPublished: true,
-    }).lean<StoreLeanDocument | null>();
+        if (!result.length) {
+            return null;
+        }
 
-    if (!store) {
+        const store = result[0];
+        return {
+            id: String(store.id),
+            ownerId: String(store.ownerId),
+            name: store.name,
+            slug: store.slug,
+            description: store.description,
+            logoUrl: store.logoUrl,
+            bannerUrl: store.bannerUrl,
+            contactEmail: store.contactEmail,
+            contactPhone: store.contactPhone,
+            location: store.location,
+            template: store.template as Store["template"],
+            themeColor: store.themeColor,
+            isPublished: store.isPublished,
+        } as Store;
+    } catch (error) {
+        console.error("Error fetching store:", error);
         return null;
     }
-
-    return mapStoreFromDb(store);
 }
 
 export async function getDbProductsByStoreId(storeId: string) {
-    await connectDb();
+    try {
+        const result = await db
+            .select({
+                id: products.id,
+                storeId: products.storeId,
+                name: products.name,
+                description: products.description,
+                price: products.price,
+                offerPrice: products.offerPrice,
+                imageUrl: products.imageUrl,
+                categoryId: products.categoryId,
+                categoryName: categories.name,
+                isActive: products.isActive,
+                createdAt: products.createdAt,
+            })
+            .from(products)
+            .leftJoin(categories, eq(products.categoryId, categories.id))
+            .where(
+                and(
+                    eq(products.storeId, parseInt(storeId)),
+                    eq(products.isActive, true)
+                )
+            )
+            .orderBy((p) => p.createdAt);
 
-    const products = await ProductModel.find({
-        storeId,
-        isActive: true,
-    })
-        .sort({ createdAt: -1 })
-        .lean<ProductLeanDocument[]>();
+        return result.map(
+            (product) =>
+                ({
+                    id: String(product.id),
+                    storeId: String(product.storeId),
+                    name: product.name,
+                    description: product.description,
+                    price: product.price,
+                    offerPrice: product.offerPrice,
+                    imageUrl: product.imageUrl,
+                    categoryName: product.categoryName,
+                    isActive: product.isActive,
+                }) as Product
+        );
+    } catch (error) {
+        console.error("Error fetching products:", error);
+        return [];
+    }
+}
 
-    return products.map(mapProductFromDb);
+export async function getDbPublishedStores(): Promise<Store[]> {
+    try {
+        const result = await db
+            .select()
+            .from(stores)
+            .where(eq(stores.isPublished, true))
+            .orderBy((s) => s.createdAt)
+            .limit(20);
+
+        return result.map(
+            (store) =>
+                ({
+                    id: String(store.id),
+                    ownerId: String(store.ownerId),
+                    name: store.name,
+                    slug: store.slug,
+                    description: store.description,
+                    logoUrl: store.logoUrl,
+                    bannerUrl: store.bannerUrl,
+                    contactEmail: store.contactEmail,
+                    contactPhone: store.contactPhone,
+                    location: store.location,
+                    template: store.template as Store["template"],
+                    themeColor: store.themeColor,
+                    isPublished: store.isPublished,
+                }) as Store
+        );
+    } catch (error) {
+        console.error("Error fetching published stores:", error);
+        return [];
+    }
 }
 
 export async function getDbProductByIdAndStoreId(
     productId: string,
     storeId: string
-) {
-    await connectDb();
+): Promise<Product | null> {
+    try {
+        const result = await db
+            .select()
+            .from(products)
+            .where(
+                and(
+                    eq(products.id, parseInt(productId)),
+                    eq(products.storeId, parseInt(storeId)),
+                    eq(products.isActive, true)
+                )
+            )
+            .limit(1);
 
-    if (!mongoose.isValidObjectId(productId)) {
+        if (!result.length) {
+            return null;
+        }
+
+        const product = result[0];
+        let categoryName: string | null = null;
+        if (product.categoryId) {
+            const [cat] = await db
+                .select()
+                .from(categories)
+                .where(eq(categories.id, product.categoryId))
+                .limit(1);
+            categoryName = cat?.name ?? null;
+        }
+
+        return {
+            id: String(product.id),
+            storeId: String(product.storeId),
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            offerPrice: product.offerPrice,
+            imageUrl: product.imageUrl,
+            categoryName,
+            isActive: product.isActive,
+        } as Product;
+    } catch (error) {
+        console.error("Error fetching product:", error);
         return null;
     }
-
-    const product = await ProductModel.findOne({
-        _id: productId,
-        storeId,
-        isActive: true,
-    }).lean<ProductLeanDocument | null>();
-
-    if (!product) {
-        return null;
-    }
-
-    return mapProductFromDb(product);
-}
-
-export async function getDbPublishedStores() {
-    await connectDb();
-
-    const stores = await StoreModel.find({
-        isPublished: true,
-    })
-        .sort({ createdAt: -1 })
-        .lean<StoreLeanDocument[]>();
-
-    return stores.map(mapStoreFromDb);
 }

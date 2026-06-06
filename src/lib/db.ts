@@ -1,42 +1,14 @@
-import mongoose from "mongoose";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { config } from "dotenv";
 
-const MONGODB_URI = process.env.MONGODB_URI;
+import * as schema from "@/db/schema";
 
-if (!MONGODB_URI) {
-    throw new Error("Please define MONGODB_URI in your .env.local file");
-}
+config({ path: ".env.local" });
 
-type CachedConnection = {
-    connection: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-};
+const sql = neon(process.env.DATABASE_URL!);
 
-declare global {
-    // eslint-disable-next-line no-var
-    var mongooseCache: CachedConnection | undefined;
-}
-
-const cached: CachedConnection = global.mongooseCache || {
-    connection: null,
-    promise: null,
-};
-
-if (!global.mongooseCache) {
-    global.mongooseCache = cached;
-}
-
-export async function connectDb() {
-    if (cached.connection) {
-        return cached.connection;
-    }
-
-    if (!cached.promise) {
-        cached.promise = mongoose.connect(MONGODB_URI as string, {
-            bufferCommands: false,
-        });
-    }
-
-    cached.connection = await cached.promise;
-
-    return cached.connection;
-}
+export const db = drizzle({
+  client: sql,
+  schema,
+});

@@ -22,16 +22,12 @@ export default async function StoreSettingsPage() {
                     </p>
 
                     <h1 className="mt-3 text-3xl font-bold text-gray-900">
-                        No demo owner store found
+                        No store found
                     </h1>
 
                     <p className="mt-3 text-sm leading-6 text-gray-500">
-                        Run the seed route first to create the demo store.
+                        Create a store to get started.
                     </p>
-
-                    <code className="mt-6 block rounded-xl bg-gray-100 p-4 text-sm text-gray-700">
-                        http://localhost:3000/api/seed
-                    </code>
 
                     <Link
                         href="/dashboard"

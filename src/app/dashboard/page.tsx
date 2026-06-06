@@ -18,21 +18,16 @@ export default async function DashboardPage() {
             <main className="min-h-screen bg-gray-50 px-6 py-16">
                 <section className="mx-auto max-w-3xl rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-200">
                     <p className="text-sm font-semibold uppercase tracking-wide text-red-600">
-                        Dashboard data not found
+                        Store not found
                     </p>
 
                     <h1 className="mt-3 text-3xl font-bold text-gray-900">
-                        No demo owner store found
+                        No store found
                     </h1>
 
                     <p className="mt-3 text-sm leading-6 text-gray-500">
-                        Run the seed route first to create the demo owner,
-                        stores, and products in MongoDB.
+                        Create a store first to get started.
                     </p>
-
-                    <code className="mt-6 block rounded-xl bg-gray-100 p-4 text-sm text-gray-700">
-                        http://localhost:3000/api/seed
-                    </code>
 
                     <Link
                         href="/"
@@ -67,7 +62,7 @@ export default async function DashboardPage() {
                         </h1>
 
                         <p className="mt-1 text-sm text-gray-500">
-                            Dashboard data is now loaded from MongoDB.
+                            Dashboard data is loaded from the database.
                         </p>
                     </div>
 
@@ -94,7 +89,7 @@ export default async function DashboardPage() {
                         <p className="mt-2 text-sm text-gray-500">
                             {store.isPublished
                                 ? "Your store is visible to customers."
-                                : "Your store is currently hidden."}
+                                : "Your store is hidden."}
                         </p>
                     </div>
 
@@ -257,7 +252,7 @@ export default async function DashboardPage() {
                             </h2>
 
                             <p className="mt-1 text-sm text-gray-500">
-                                Latest products loaded from MongoDB.
+                                Latest products from your store.
                             </p>
                         </div>
 
@@ -306,8 +301,21 @@ export default async function DashboardPage() {
                                         </div>
 
                                         <p className="mt-1 text-sm text-gray-500">
-                                            {product.category} · ₹
-                                            {product.price}
+                                            {product.categoryName ||
+                                                "Uncategorized"}{" "}
+                                            ·{" "}
+                                            {product.offerPrice ? (
+                                                <>
+                                                    <span className="text-gray-400 line-through">
+                                                        ₹{product.price}
+                                                    </span>{" "}
+                                                    <span className="font-semibold text-green-600">
+                                                        ₹{product.offerPrice}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <>₹{product.price}</>
+                                            )}
                                         </p>
                                     </div>
 

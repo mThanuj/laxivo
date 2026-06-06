@@ -1,37 +1,40 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useRef, useState } from "react";
 import { Product } from "@/types/product";
 import { Store } from "@/types/store";
 import { AuthTokenPayload } from "@/lib/auth";
+import CategoryInput from "@/components/common/CategoryInput";
 
 type ProductFormState = {
     name: string;
     description: string;
     price: string;
+    offerPrice: string;
     imageUrl: string;
-    category: string;
+    categoryId: string;
 };
 
 type ProductManagementClientProps = {
     initialStore: Store;
     initialProducts: Product[];
-    currentUser: AuthTokenPayload;
+    currentUser?: AuthTokenPayload;
 };
 
 const emptyProductForm: ProductFormState = {
     name: "",
     description: "",
     price: "",
+    offerPrice: "",
     imageUrl: "",
-    category: "",
+    categoryId: "",
 };
 
 export default function ProductManagementClient({
     initialStore,
     initialProducts,
-    currentUser,
 }: ProductManagementClientProps) {
     const [store] = useState<Store>(initialStore);
     const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -64,12 +67,6 @@ export default function ProductManagementClient({
             return;
         }
 
-        if (!formData.category.trim()) {
-            setMessageType("error");
-            setMessage("Product category is required.");
-            return;
-        }
-
         if (!numericPrice || numericPrice <= 0) {
             setMessageType("error");
             setMessage("Enter a valid product price.");
@@ -78,7 +75,7 @@ export default function ProductManagementClient({
 
         if (!formData.imageUrl.trim()) {
             setMessageType("error");
-            setMessage("Product image URL is required.");
+            setMessage("Product image is required.");
             return;
         }
 
@@ -91,7 +88,10 @@ export default function ProductManagementClient({
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    categoryId: formData.categoryId || null,
+                }),
             });
 
             const result = await response.json();
@@ -104,7 +104,7 @@ export default function ProductManagementClient({
             setFormData(emptyProductForm);
             fileInputRef.current!.value = "";
             setMessageType("success");
-            setMessage("Product created successfully in MongoDB.");
+            setMessage("Product created successfully.");
         } catch (error) {
             setMessageType("error");
             setMessage(
@@ -202,7 +202,7 @@ export default function ProductManagementClient({
         formData.append("api_key", apiKey);
         formData.append("timestamp", timestamp);
         formData.append("signature", signature);
-        formData.append("folder", "xovio");
+        formData.append("folder", "laxivo");
 
         const upload = await fetch(
             "https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload",
@@ -279,7 +279,7 @@ export default function ProductManagementClient({
                     </h2>
 
                     <p className="mt-2 text-sm text-gray-500">
-                        This creates a real product document in MongoDB.
+                        This creates a new product in the database.
                     </p>
 
                     <form
@@ -288,7 +288,8 @@ export default function ProductManagementClient({
                     >
                         <div>
                             <label className="text-sm font-medium text-gray-700">
-                                Product Name
+                                Product Name{" "}
+                                <span className="text-red-500">*</span>
                             </label>
                             <input
                                 value={formData.name}
@@ -302,24 +303,20 @@ export default function ProductManagementClient({
 
                         <div>
                             <label className="text-sm font-medium text-gray-700">
-                                Category
+                                Category <span className="text-red-500">*</span>
                             </label>
-                            <input
-                                value={formData.category}
-                                onChange={(event) =>
-                                    updateFormField(
-                                        "category",
-                                        event.target.value
-                                    )
+                            <CategoryInput
+                                value={formData.categoryId}
+                                onChange={(val) =>
+                                    updateFormField("categoryId", val)
                                 }
-                                placeholder="Example: Cakes"
-                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                             />
                         </div>
 
                         <div>
                             <label className="text-sm font-medium text-gray-700">
-                                Price
+                                Original Price{" "}
+                                <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="number"
@@ -335,7 +332,30 @@ export default function ProductManagementClient({
 
                         <div>
                             <label className="text-sm font-medium text-gray-700">
-                                Image URL
+                                Offer Price{" "}
+                                <span className="text-gray-400">
+                                    (optional)
+                                </span>
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={formData.offerPrice}
+                                onChange={(event) =>
+                                    updateFormField(
+                                        "offerPrice",
+                                        event.target.value
+                                    )
+                                }
+                                placeholder="Example: 199 (leave empty if no offer)"
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium text-gray-700">
+                                Image URL{" "}
+                                <span className="text-red-500">*</span>
                             </label>
                             <input
                                 ref={fileInputRef}
@@ -350,7 +370,10 @@ export default function ProductManagementClient({
 
                         <div>
                             <label className="text-sm font-medium text-gray-700">
-                                Description
+                                Description{" "}
+                                <span className="text-gray-400">
+                                    (optional)
+                                </span>
                             </label>
                             <textarea
                                 value={formData.description}
@@ -448,11 +471,13 @@ export default function ProductManagementClient({
                                             key={product.id}
                                             className="grid gap-4 px-6 py-5 md:grid-cols-[90px_1fr_120px_100px_180px] md:items-center"
                                         >
-                                            <div className="h-20 w-20 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
-                                                <img
+                                            <div className="relative h-20 w-20 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
+                                                <Image
                                                     src={product.imageUrl}
                                                     alt={product.name}
-                                                    className="h-full w-full object-cover"
+                                                    fill
+                                                    className="object-cover"
+                                                    sizes="80px"
                                                 />
                                             </div>
 
@@ -482,12 +507,35 @@ export default function ProductManagementClient({
                                             </div>
 
                                             <p className="text-sm font-medium text-gray-700">
-                                                {product.category}
+                                                {product.categoryName || "—"}
                                             </p>
 
-                                            <p className="text-sm font-bold text-gray-900">
-                                                ₹{product.price}
-                                            </p>
+                                            <div className="text-sm">
+                                                {product.offerPrice ? (
+                                                    <div>
+                                                        <span className="font-medium text-gray-400 line-through">
+                                                            ₹{product.price}
+                                                        </span>
+                                                        <span className="ml-1.5 font-bold text-green-600">
+                                                            ₹
+                                                            {product.offerPrice}
+                                                        </span>
+                                                        <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-semibold text-green-700">
+                                                            {Math.round(
+                                                                ((product.price -
+                                                                    product.offerPrice) /
+                                                                    product.price) *
+                                                                    100
+                                                            )}
+                                                            % off
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="font-bold text-gray-900">
+                                                        ₹{product.price}
+                                                    </span>
+                                                )}
+                                            </div>
 
                                             <div className="flex flex-wrap gap-3 md:justify-end">
                                                 <Link
@@ -531,18 +579,6 @@ export default function ProductManagementClient({
                             </div>
                         </div>
                     )}
-
-                    <div className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white p-6">
-                        <h2 className="text-lg font-bold text-gray-900">
-                            Product Management Is Now Persistent
-                        </h2>
-
-                        <p className="mt-2 text-sm leading-6 text-gray-500">
-                            Products are now stored in MongoDB. Adding,
-                            deactivating, or deleting products here will affect
-                            the public storefront.
-                        </p>
-                    </div>
                 </div>
             </section>
         </main>

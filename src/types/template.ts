@@ -5,3 +5,5 @@ export type StoreTemplateProps = {
     store: Store;
     products: Product[];
 };
+
+export type TemplateComponent = React.ComponentType<StoreTemplateProps>;

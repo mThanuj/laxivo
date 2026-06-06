@@ -61,16 +61,37 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
                 <div className="flex flex-col justify-center">
                     <p className="text-sm font-semibold uppercase tracking-wide text-green-600">
-                        {product.category}
+                        {product.categoryName}
                     </p>
 
                     <h1 className="mt-3 text-4xl font-bold tracking-tight text-gray-900">
                         {product.name}
                     </h1>
 
-                    <p className="mt-4 text-3xl font-bold text-gray-900">
-                        ₹{product.price}
-                    </p>
+                    <div className="mt-4">
+                        {product.offerPrice ? (
+                            <div className="flex items-center gap-3">
+                                <span className="text-3xl font-bold text-green-600">
+                                    ₹{product.offerPrice}
+                                </span>
+                                <span className="text-xl text-gray-400 line-through">
+                                    ₹{product.price}
+                                </span>
+                                <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-700">
+                                    {Math.round(
+                                        ((product.price - product.offerPrice) /
+                                            product.price) *
+                                            100
+                                    )}
+                                    % off
+                                </span>
+                            </div>
+                        ) : (
+                            <p className="text-3xl font-bold text-gray-900">
+                                ₹{product.price}
+                            </p>
+                        )}
+                    </div>
 
                     <p className="mt-6 text-base leading-7 text-gray-600">
                         {product.description}

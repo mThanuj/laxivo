@@ -1,9 +1,9 @@
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
-import { connectDb } from "@/lib/db";
+import { db } from "@/lib/db";
+import { users, stores } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { createSlug } from "@/lib/slug";
-import { StoreModel } from "@/models/Store";
-import { UserModel } from "@/models/User";
 import { signAuthToken } from "@/lib/auth";
 
 async function generateUniqueSlug(businessName: string) {
@@ -16,7 +16,17 @@ async function generateUniqueSlug(businessName: string) {
     let slug = baseSlug;
     let counter = 1;
 
-    while (await StoreModel.exists({ slug })) {
+    while (true) {
+        const existing = await db
+            .select()
+            .from(stores)
+            .where(eq(stores.slug, slug))
+            .limit(1);
+
+        if (!existing.length) {
+            break;
+        }
+
         slug = `${baseSlug}-${counter}`;
         counter += 1;
     }
@@ -26,8 +36,6 @@ async function generateUniqueSlug(businessName: string) {
 
 export async function POST(request: NextRequest) {
     try {
-        await connectDb();
-
         const body = await request.json();
 
         const { name, email, password, businessName } = body;
@@ -55,11 +63,13 @@ export async function POST(request: NextRequest) {
 
         const normalizedEmail = String(email).trim().toLowerCase();
 
-        const existingUser = await UserModel.findOne({
-            email: normalizedEmail,
-        });
+        const existingUser = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, normalizedEmail))
+            .limit(1);
 
-        if (existingUser) {
+        if (existingUser.length) {
             return NextResponse.json(
                 {
                     success: false,
@@ -71,38 +81,48 @@ export async function POST(request: NextRequest) {
 
         const passwordHash = await bcrypt.hash(String(password), 10);
 
-        const user = await UserModel.create({
-            name: String(name).trim(),
-            email: normalizedEmail,
-            passwordHash,
-            role: "OWNER",
-        });
+        const newUser = await db
+            .insert(users)
+            .values({
+                name: String(name).trim(),
+                email: normalizedEmail,
+                passwordHash,
+                role: "OWNER",
+            })
+            .returning();
+
+        const user = newUser[0];
 
         const slug = await generateUniqueSlug(String(businessName));
 
-        const store = await StoreModel.create({
-            ownerId: user._id,
-            name: String(businessName).trim(),
-            slug,
-            description:
-                "Welcome to our online store. Update this description from your dashboard.",
-            logoUrl:
-                "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=400&auto=format&fit=crop",
-            bannerUrl:
-                "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?q=80&w=1600&auto=format&fit=crop",
-            contactEmail: normalizedEmail,
-            contactPhone: "+91 00000 00000",
-            location: "Update your location",
-            template: "classic",
-            themeColor: "#2563eb",
-            isPublished: true,
-        });
+        const newStore = await db
+            .insert(stores)
+            .values({
+                ownerId: user.id,
+                name: String(businessName).trim(),
+                slug,
+                description:
+                    "Welcome to our online store. Update this description from your dashboard.",
+                logoUrl:
+                    "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=400&auto=format&fit=crop",
+                bannerUrl:
+                    "https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?q=80&w=1600&auto=format&fit=crop",
+                contactEmail: normalizedEmail,
+                contactPhone: "+91 00000 00000",
+                location: "Update your location",
+                template: "classic",
+                themeColor: "#2563eb",
+                isPublished: true,
+            })
+            .returning();
+
+        const store = newStore[0];
 
         const token = signAuthToken({
-            userId: user._id.toString(),
+            userId: String(user.id),
             name: user.name,
             email: user.email,
-            role: user.role,
+            role: user.role as "OWNER" | "ADMIN",
         });
 
         const response = NextResponse.json(
@@ -110,14 +130,14 @@ export async function POST(request: NextRequest) {
                 success: true,
                 message: "Account and starter store created successfully.",
                 user: {
-                    id: user._id.toString(),
+                    id: String(user.id),
                     name: user.name,
                     email: user.email,
                     role: user.role,
                 },
                 store: {
-                    id: store._id.toString(),
-                    ownerId: store.ownerId.toString(),
+                    id: String(store.id),
+                    ownerId: String(store.ownerId),
                     name: store.name,
                     slug: store.slug,
                     description: store.description,

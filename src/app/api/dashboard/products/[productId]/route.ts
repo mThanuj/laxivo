@@ -1,8 +1,8 @@
-import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
-import { connectDb } from "@/lib/db";
-import { ProductModel } from "@/models/Product";
-import { StoreModel } from "@/models/Store";
+import { and, eq } from "drizzle-orm";
+
+import { db } from "@/lib/db";
+import { products, stores, categories } from "@/db/schema";
 import { getAuthUserFromRequest } from "@/lib/auth";
 
 type RouteProps = {
@@ -11,18 +11,14 @@ type RouteProps = {
     }>;
 };
 
-async function getOwnerStore(ownerId: string) {
-    const store = await StoreModel.findOne({
-        ownerId,
+async function getOwnerStore(ownerId: number) {
+    return db.query.stores.findFirst({
+        where: eq(stores.ownerId, ownerId),
     });
-
-    return store;
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteProps) {
     try {
-        await connectDb();
-
         const currentUser = getAuthUserFromRequest(request);
 
         if (!currentUser) {
@@ -36,8 +32,9 @@ export async function PATCH(request: NextRequest, { params }: RouteProps) {
         }
 
         const { productId } = await params;
+        const parsedProductId = Number(productId);
 
-        if (!mongoose.isValidObjectId(productId)) {
+        if (Number.isNaN(parsedProductId)) {
             return NextResponse.json(
                 {
                     success: false,
@@ -47,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteProps) {
             );
         }
 
-        const store = await getOwnerStore(currentUser.userId);
+        const store = await getOwnerStore(Number(currentUser.userId));
 
         if (!store) {
             return NextResponse.json(
@@ -61,16 +58,19 @@ export async function PATCH(request: NextRequest, { params }: RouteProps) {
 
         const body = await request.json();
 
-        const product = await ProductModel.findOneAndUpdate(
-            {
-                _id: productId,
-                storeId: store._id,
-            },
-            body,
-            {
-                new: true,
-            }
-        );
+        const [product] = await db
+            .update(products)
+            .set({
+                ...body,
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(products.id, parsedProductId),
+                    eq(products.storeId, store.id)
+                )
+            )
+            .returning();
 
         if (!product) {
             return NextResponse.json(
@@ -82,17 +82,28 @@ export async function PATCH(request: NextRequest, { params }: RouteProps) {
             );
         }
 
+        let categoryName: string | null = null;
+        if (product.categoryId) {
+            const [cat] = await db
+                .select()
+                .from(categories)
+                .where(eq(categories.id, product.categoryId))
+                .limit(1);
+            categoryName = cat?.name ?? null;
+        }
+
         return NextResponse.json({
             success: true,
             message: "Product updated successfully.",
             product: {
-                id: product._id.toString(),
-                storeId: product.storeId.toString(),
+                id: product.id,
+                storeId: product.storeId,
                 name: product.name,
                 description: product.description,
                 price: product.price,
+                offerPrice: product.offerPrice,
                 imageUrl: product.imageUrl,
-                category: product.category,
+                categoryName,
                 isActive: product.isActive,
             },
         });
@@ -111,8 +122,6 @@ export async function PATCH(request: NextRequest, { params }: RouteProps) {
 
 export async function DELETE(request: NextRequest, { params }: RouteProps) {
     try {
-        await connectDb();
-
         const currentUser = getAuthUserFromRequest(request);
 
         if (!currentUser) {
@@ -126,8 +135,9 @@ export async function DELETE(request: NextRequest, { params }: RouteProps) {
         }
 
         const { productId } = await params;
+        const parsedProductId = Number(productId);
 
-        if (!mongoose.isValidObjectId(productId)) {
+        if (Number.isNaN(parsedProductId)) {
             return NextResponse.json(
                 {
                     success: false,
@@ -137,22 +147,27 @@ export async function DELETE(request: NextRequest, { params }: RouteProps) {
             );
         }
 
-        const store = await getOwnerStore(currentUser.userId);
+        const store = await getOwnerStore(Number(currentUser.userId));
 
         if (!store) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "Demo owner store not found.",
+                    message: "Owner store not found.",
                 },
                 { status: 404 }
             );
         }
 
-        const deletedProduct = await ProductModel.findOneAndDelete({
-            _id: productId,
-            storeId: store._id,
-        });
+        const [deletedProduct] = await db
+            .delete(products)
+            .where(
+                and(
+                    eq(products.id, parsedProductId),
+                    eq(products.storeId, store.id)
+                )
+            )
+            .returning();
 
         if (!deletedProduct) {
             return NextResponse.json(

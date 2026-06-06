@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getOwnerStore } from "@/lib/dashboardData";
 import { getCurrentUser } from "@/lib/serverAuth";
+import { getAllTemplateOptions } from "@/lib/templateLoader";
 import TemplateSelectionClient from "./TemplateSelectionClient";
 
 export default async function TemplateSelectionPage() {
@@ -12,6 +13,7 @@ export default async function TemplateSelectionPage() {
     }
 
     const store = await getOwnerStore(currentUser.userId);
+    const templates = await getAllTemplateOptions();
 
     if (!store) {
         return (
@@ -22,17 +24,12 @@ export default async function TemplateSelectionPage() {
                     </p>
 
                     <h1 className="mt-3 text-3xl font-bold text-gray-900">
-                        No demo owner store found
+                        No store found
                     </h1>
 
                     <p className="mt-3 text-sm leading-6 text-gray-500">
-                        Run the seed route first to create the demo owner and
-                        store.
+                        Create a store to get started.
                     </p>
-
-                    <code className="mt-6 block rounded-xl bg-gray-100 p-4 text-sm text-gray-700">
-                        http://localhost:3000/api/seed
-                    </code>
 
                     <Link
                         href="/dashboard"
@@ -49,6 +46,7 @@ export default async function TemplateSelectionPage() {
         <TemplateSelectionClient
             initialStore={store}
             currentUser={currentUser}
+            templates={templates}
         />
     );
 }

@@ -8,7 +8,6 @@ type DashboardHeaderProps = {
 };
 
 export default function DashboardHeader({
-    storeSlug,
     userName,
     userEmail,
 }: DashboardHeaderProps) {
@@ -21,7 +20,7 @@ export default function DashboardHeader({
                     </Link>
 
                     <p className="mt-1 text-sm text-gray-500">
-                        MVP dashboard for managing your online storefront.
+                        Manage your online storefront.
                     </p>
 
                     {(userName || userEmail) && (
@@ -78,15 +77,6 @@ export default function DashboardHeader({
                         >
                             Products
                         </Link>
-
-                        {storeSlug && (
-                            <Link
-                                href={`/stores/${storeSlug}`}
-                                className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                            >
-                                Public Store
-                            </Link>
-                        )}
                     </nav>
 
                     <div className="flex justify-start lg:justify-end">

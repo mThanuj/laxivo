@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDb } from "@/lib/db";
-import { StoreModel } from "@/models/Store";
-import { getAuthUserFromRequest } from "@/lib/auth";
+import { eq } from "drizzle-orm";
 
-const allowedTemplates = ["classic", "modern", "minimal"];
+import { db } from "@/lib/db";
+import { stores } from "@/db/schema";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import { getAllTemplateKeysSync } from "@/lib/templateLoader";
 
 export async function PUT(request: NextRequest) {
     try {
-        await connectDb();
-
         const currentUser = getAuthUserFromRequest(request);
 
         if (!currentUser) {
@@ -20,10 +19,11 @@ export async function PUT(request: NextRequest) {
                 { status: 401 }
             );
         }
+
         const body = await request.json();
         const { template } = body;
 
-        if (!template || !allowedTemplates.includes(template)) {
+        if (!template || !getAllTemplateKeysSync().includes(template)) {
             return NextResponse.json(
                 {
                     success: false,
@@ -33,23 +33,20 @@ export async function PUT(request: NextRequest) {
             );
         }
 
-        const updatedStore = await StoreModel.findOneAndUpdate(
-            {
-                ownerId: currentUser.userId,
-            },
-            {
+        const [updatedStore] = await db
+            .update(stores)
+            .set({
                 template,
-            },
-            {
-                new: true,
-            }
-        );
+                updatedAt: new Date(),
+            })
+            .where(eq(stores.ownerId, Number(currentUser.userId)))
+            .returning();
 
         if (!updatedStore) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "Store not found for demo owner.",
+                    message: "Store not found.",
                 },
                 { status: 404 }
             );
@@ -59,8 +56,8 @@ export async function PUT(request: NextRequest) {
             success: true,
             message: "Template updated successfully.",
             store: {
-                id: updatedStore._id.toString(),
-                ownerId: updatedStore.ownerId.toString(),
+                id: updatedStore.id,
+                ownerId: updatedStore.ownerId,
                 name: updatedStore.name,
                 slug: updatedStore.slug,
                 description: updatedStore.description,

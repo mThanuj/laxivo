@@ -5,7 +5,7 @@ export async function POST() {
     const timestamp = Math.round(Date.now() / 1000);
 
     const signature = cloudinary.utils.api_sign_request(
-        { timestamp: timestamp, folder: "xovio" },
+        { timestamp: timestamp, folder: "laxivo" },
         process.env.CLOUDINARY_API_SECRET!
     );
 

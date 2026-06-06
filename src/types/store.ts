@@ -1,4 +1,4 @@
-export type StoreTemplate = "classic" | "modern" | "minimal";
+export type StoreTemplate = string;
 
 export type Store = {
     id: string;
@@ -11,7 +11,7 @@ export type Store = {
     contactEmail: string;
     contactPhone: string;
     location: string;
-    template: StoreTemplate;
+    template: string;
     themeColor: string;
     isPublished: boolean;
 };

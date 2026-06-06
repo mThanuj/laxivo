@@ -69,7 +69,11 @@ export default function LoginPage() {
             setMessage("Logged in successfully. Redirecting to dashboard...");
 
             setTimeout(() => {
-                router.push("/dashboard");
+                const destination =
+                    result.user?.role === "ADMIN"
+                        ? "/dashboard/admin"
+                        : "/dashboard";
+                router.push(destination);
                 router.refresh();
             }, 700);
         } catch (error) {
@@ -164,10 +168,18 @@ export default function LoginPage() {
                         </div>
                     )}
 
-                    <div className="mt-6 rounded-xl bg-blue-50 p-4 text-sm text-blue-800 ring-1 ring-blue-100">
-                        <p className="font-semibold">Demo credentials</p>
-                        <p className="mt-1">Email: demo-owner@example.com</p>
-                        <p>Password: password123</p>
+                    <div className="mt-6 space-y-3 rounded-xl bg-blue-50 p-4 text-sm text-blue-800 ring-1 ring-blue-100">
+                        <div>
+                            <p className="font-semibold">Demo Owner</p>
+                            <p>Email: demo-owner@example.com</p>
+                            <p>Password: password123</p>
+                        </div>
+                        <hr className="border-blue-200" />
+                        <div>
+                            <p className="font-semibold">Admin</p>
+                            <p>Email: admin@laxivo.com</p>
+                            <p>Password: admin123</p>
+                        </div>
                     </div>
 
                     <p className="mt-6 text-center text-sm text-gray-500">

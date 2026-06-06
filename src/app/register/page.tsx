@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 
 type RegisterFormState = {
     name: string;
@@ -19,7 +18,6 @@ const initialFormState: RegisterFormState = {
 };
 
 export default function RegisterPage() {
-    const router = useRouter();
     const [formData, setFormData] =
         useState<RegisterFormState>(initialFormState);
     const [message, setMessage] = useState("");
@@ -120,8 +118,7 @@ export default function RegisterPage() {
                         </h1>
 
                         <p className="mt-2 text-sm text-gray-500">
-                            Create a real owner account and starter store in
-                            MongoDB.
+                            Create your owner account and starter store.
                         </p>
                     </div>
 

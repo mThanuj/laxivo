@@ -1,12 +1,9 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export async function POST() {
-    const response = NextResponse.json({
-        success: true,
-        message: "Logged out successfully.",
-    });
-
-    response.cookies.set("auth_token", "", {
+export async function POST(request: Request) {
+    const cookieStore = await cookies();
+    cookieStore.set("auth_token", "", {
         httpOnly: true,
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
@@ -14,5 +11,17 @@ export async function POST() {
         maxAge: 0,
     });
 
-    return response;
+    const accept = request.headers.get("accept") ?? "";
+    const isFormSubmission = accept.includes("text/html");
+
+    if (isFormSubmission) {
+        return NextResponse.redirect(new URL("/", request.url), {
+            status: 303,
+        });
+    }
+
+    return NextResponse.json({
+        success: true,
+        message: "Logged out successfully.",
+    });
 }

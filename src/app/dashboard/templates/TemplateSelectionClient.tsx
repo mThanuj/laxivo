@@ -2,21 +2,22 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { mockTemplates } from "@/data/mockTemplates";
-import { Store, StoreTemplate } from "@/types/store";
+import { Store } from "@/types/store";
 import { AuthTokenPayload } from "@/lib/auth";
+import { TemplateOption } from "@/lib/dynamicTemplateLoader";
 
 type TemplateSelectionClientProps = {
     initialStore: Store;
     currentUser: AuthTokenPayload;
+    templates: TemplateOption[];
 };
 
 export default function TemplateSelectionClient({
     initialStore,
-    currentUser,
+    templates,
 }: TemplateSelectionClientProps) {
     const [store, setStore] = useState<Store>(initialStore);
-    const [selectedTemplate, setSelectedTemplate] = useState<StoreTemplate>(
+    const [selectedTemplate, setSelectedTemplate] = useState<string>(
         initialStore.template
     );
     const [message, setMessage] = useState("");
@@ -25,7 +26,7 @@ export default function TemplateSelectionClient({
     );
     const [isSaving, setIsSaving] = useState(false);
 
-    async function handleUseTemplate(template: StoreTemplate) {
+    async function handleUseTemplate(template: string) {
         try {
             setIsSaving(true);
             setMessage("");
@@ -57,7 +58,7 @@ export default function TemplateSelectionClient({
         }
     }
 
-    const selectedTemplateInfo = mockTemplates.find(
+    const selectedTemplateInfo = templates.find(
         (template) => template.key === selectedTemplate
     );
 
@@ -78,7 +79,7 @@ export default function TemplateSelectionClient({
                         </h1>
 
                         <p className="mt-1 text-sm text-gray-500">
-                            Select a layout and save it to MongoDB.
+                            Select a layout and save it to the database.
                         </p>
                     </div>
 
@@ -102,9 +103,8 @@ export default function TemplateSelectionClient({
                     </h2>
 
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-800">
-                        This template is saved in MongoDB for {store.name}. Your
-                        public storefront will render using this selected
-                        template.
+                        This template is saved for {store.name}. Your public
+                        storefront will render using this selected template.
                     </p>
 
                     {selectedTemplateInfo && (
@@ -132,7 +132,7 @@ export default function TemplateSelectionClient({
                 )}
 
                 <div className="mt-8 grid gap-6 md:grid-cols-3">
-                    {mockTemplates.map((template) => {
+                    {templates.map((template) => {
                         const isSelected = template.key === selectedTemplate;
 
                         return (
@@ -234,18 +234,6 @@ export default function TemplateSelectionClient({
                             </article>
                         );
                     })}
-                </div>
-
-                <div className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white p-6">
-                    <h2 className="text-lg font-bold text-gray-900">
-                        Template Selection Is Now Persistent
-                    </h2>
-
-                    <p className="mt-2 text-sm leading-6 text-gray-500">
-                        This page now updates MongoDB. After selecting a
-                        template, open your public store to confirm the
-                        storefront layout changes.
-                    </p>
                 </div>
             </section>
         </main>

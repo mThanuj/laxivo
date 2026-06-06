@@ -1,149 +1,192 @@
-import mongoose from "mongoose";
-import { connectDb } from "@/lib/db";
-import { ProductModel } from "@/models/Product";
-import { StoreModel } from "@/models/Store";
-import { UserModel } from "@/models/User";
+import { db } from "@/lib/db";
+import { stores, products, categories } from "@/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { Product } from "@/types/product";
 import { Store } from "@/types/store";
 
-type StoreLeanDocument = {
-    _id: mongoose.Types.ObjectId;
-    ownerId: mongoose.Types.ObjectId;
-    name: string;
-    slug: string;
-    description: string;
-    logoUrl: string;
-    bannerUrl: string;
-    contactEmail: string;
-    contactPhone: string;
-    location: string;
-    template: Store["template"];
-    themeColor: string;
-    isPublished: boolean;
-};
-
-type ProductLeanDocument = {
-    _id: mongoose.Types.ObjectId;
-    storeId: mongoose.Types.ObjectId;
-    name: string;
-    description: string;
-    price: number;
-    imageUrl: string;
-    category: string;
-    isActive: boolean;
-};
-
-function mapStoreFromDb(store: StoreLeanDocument): Store {
-    return {
-        id: store._id.toString(),
-        ownerId: store.ownerId.toString(),
-        name: store.name,
-        slug: store.slug,
-        description: store.description,
-        logoUrl: store.logoUrl,
-        bannerUrl: store.bannerUrl,
-        contactEmail: store.contactEmail,
-        contactPhone: store.contactPhone,
-        location: store.location,
-        template: store.template,
-        themeColor: store.themeColor,
-        isPublished: store.isPublished,
-    };
-}
-
-function mapProductFromDb(product: ProductLeanDocument): Product {
-    return {
-        id: product._id.toString(),
-        storeId: product.storeId.toString(),
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        imageUrl: product.imageUrl,
-        category: product.category,
-        isActive: product.isActive,
-    };
-}
-
 export async function getOwnerDashboardData(ownerId: string) {
-    await connectDb();
+    try {
+        const result = await db
+            .select()
+            .from(stores)
+            .where(eq(stores.ownerId, parseInt(ownerId)))
+            .limit(1);
 
-    if (!mongoose.isValidObjectId(ownerId)) {
+        if (!result.length) {
+            return null;
+        }
+
+        const store = result[0];
+
+        const recentProducts = await db
+            .select({
+                id: products.id,
+                storeId: products.storeId,
+                name: products.name,
+                description: products.description,
+                price: products.price,
+                offerPrice: products.offerPrice,
+                imageUrl: products.imageUrl,
+                categoryId: products.categoryId,
+                categoryName: categories.name,
+                isActive: products.isActive,
+                createdAt: products.createdAt,
+            })
+            .from(products)
+            .leftJoin(categories, eq(products.categoryId, categories.id))
+            .where(eq(products.storeId, store.id))
+            .orderBy(desc(products.createdAt))
+            .limit(5);
+
+        const totalProducts = await db.$count(
+            products,
+            eq(products.storeId, store.id)
+        );
+
+        const activeProducts = await db.$count(
+            products,
+            and(eq(products.storeId, store.id), eq(products.isActive, true))
+        );
+
+        return {
+            store: {
+                id: String(store.id),
+                ownerId: String(store.ownerId),
+                name: store.name,
+                slug: store.slug,
+                description: store.description,
+                logoUrl: store.logoUrl,
+                bannerUrl: store.bannerUrl,
+                contactEmail: store.contactEmail,
+                contactPhone: store.contactPhone,
+                location: store.location,
+                template: store.template as Store["template"],
+                themeColor: store.themeColor,
+                isPublished: store.isPublished,
+            } as Store,
+            recentProducts: recentProducts.map(
+                (p) =>
+                    ({
+                        id: String(p.id),
+                        storeId: String(p.storeId),
+                        name: p.name,
+                        description: p.description,
+                        price: p.price,
+                        offerPrice: p.offerPrice,
+                        imageUrl: p.imageUrl,
+                        categoryName: p.categoryName,
+                        isActive: p.isActive,
+                    }) as Product
+            ),
+            totalProducts,
+            activeProducts,
+        };
+    } catch (error) {
+        console.error("Error fetching dashboard data:", error);
         return null;
     }
-
-    const store = await StoreModel.findOne({
-        ownerId,
-    }).lean<StoreLeanDocument | null>();
-
-    if (!store) {
-        return null;
-    }
-
-    const products = await ProductModel.find({
-        storeId: store._id,
-    })
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .lean<ProductLeanDocument[]>();
-
-    const totalProducts = await ProductModel.countDocuments({
-        storeId: store._id,
-    });
-
-    const activeProducts = await ProductModel.countDocuments({
-        storeId: store._id,
-        isActive: true,
-    });
-
-    return {
-        store: mapStoreFromDb(store),
-        recentProducts: products.map(mapProductFromDb),
-        totalProducts,
-        activeProducts,
-    };
 }
 
 export async function getOwnerStore(ownerId: string) {
-    await connectDb();
+    try {
+        const result = await db
+            .select()
+            .from(stores)
+            .where(eq(stores.ownerId, parseInt(ownerId)))
+            .limit(1);
 
-    if (!mongoose.isValidObjectId(ownerId)) {
+        if (!result.length) {
+            return null;
+        }
+
+        const store = result[0];
+        return {
+            id: String(store.id),
+            ownerId: String(store.ownerId),
+            name: store.name,
+            slug: store.slug,
+            description: store.description,
+            logoUrl: store.logoUrl,
+            bannerUrl: store.bannerUrl,
+            contactEmail: store.contactEmail,
+            contactPhone: store.contactPhone,
+            location: store.location,
+            template: store.template as Store["template"],
+            themeColor: store.themeColor,
+            isPublished: store.isPublished,
+        } as Store;
+    } catch (error) {
+        console.error("Error fetching owner store:", error);
         return null;
     }
-
-    const store = await StoreModel.findOne({
-        ownerId,
-    }).lean<StoreLeanDocument | null>();
-
-    if (!store) {
-        return null;
-    }
-
-    return mapStoreFromDb(store);
 }
 
 export async function getOwnerProductsData(ownerId: string) {
-    await connectDb();
+    try {
+        const result = await db
+            .select()
+            .from(stores)
+            .where(eq(stores.ownerId, parseInt(ownerId)))
+            .limit(1);
 
-    if (!mongoose.isValidObjectId(ownerId)) {
+        if (!result.length) {
+            return null;
+        }
+
+        const store = result[0];
+
+        const allProducts = await db
+            .select({
+                id: products.id,
+                storeId: products.storeId,
+                name: products.name,
+                description: products.description,
+                price: products.price,
+                offerPrice: products.offerPrice,
+                imageUrl: products.imageUrl,
+                categoryId: products.categoryId,
+                categoryName: categories.name,
+                isActive: products.isActive,
+                createdAt: products.createdAt,
+            })
+            .from(products)
+            .leftJoin(categories, eq(products.categoryId, categories.id))
+            .where(eq(products.storeId, store.id))
+            .orderBy(desc(products.createdAt));
+
+        return {
+            store: {
+                id: String(store.id),
+                ownerId: String(store.ownerId),
+                name: store.name,
+                slug: store.slug,
+                description: store.description,
+                logoUrl: store.logoUrl,
+                bannerUrl: store.bannerUrl,
+                contactEmail: store.contactEmail,
+                contactPhone: store.contactPhone,
+                location: store.location,
+                template: store.template as Store["template"],
+                themeColor: store.themeColor,
+                isPublished: store.isPublished,
+            } as Store,
+            products: allProducts.map(
+                (p) =>
+                    ({
+                        id: String(p.id),
+                        storeId: String(p.storeId),
+                        name: p.name,
+                        description: p.description,
+                        price: p.price,
+                        offerPrice: p.offerPrice,
+                        imageUrl: p.imageUrl,
+                        categoryName: p.categoryName,
+                        isActive: p.isActive,
+                    }) as Product
+            ),
+        };
+    } catch (error) {
+        console.error("Error fetching owner products:", error);
         return null;
     }
-
-    const store = await StoreModel.findOne({
-        ownerId,
-    }).lean<StoreLeanDocument | null>();
-
-    if (!store) {
-        return null;
-    }
-
-    const products = await ProductModel.find({
-        storeId: store._id,
-    })
-        .sort({ createdAt: -1 })
-        .lean<ProductLeanDocument[]>();
-
-    return {
-        store: mapStoreFromDb(store),
-        products: products.map(mapProductFromDb),
-    };
 }
